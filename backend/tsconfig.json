@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "lib": ["ES2020"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@vastuplan/shared": ["../shared/src/index.ts"]
+    },
+    "resolveJsonModule": true
+  },
+  "ts-node": {
+    "paths": {
+      "@vastuplan/shared": ["../shared/src/index.ts"]
+    }
+  },
+  "include": ["src", "../shared/src"],
+  "exclude": ["node_modules", "dist"]
+}

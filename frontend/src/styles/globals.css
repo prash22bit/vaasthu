@@ -1,0 +1,220 @@
+/* =============================================================================
+   VastuPlan — Global Styles
+   ============================================================================= */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------------
+   Base resets and defaults
+   ----------------------------------------------------------------------------- */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background-color: #0f1117;
+    color: #e8eaf2;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  #root {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Custom scrollbar for panels */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2a3050;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a4268;
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid #4d64ff;
+    outline-offset: 2px;
+  }
+
+  input, select, textarea {
+    font-family: inherit;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Utility layer
+   ----------------------------------------------------------------------------- */
+@layer utilities {
+  .no-select {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .font-mono-numbers {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Panel separator */
+  .panel-divider {
+    border-top: 1px solid #1f2438;
+    margin: 8px 0;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Component layer
+   ----------------------------------------------------------------------------- */
+@layer components {
+
+  /* ── Input ──────────────────────────────────────────────────────────────── */
+  .input-base {
+    @apply w-full bg-canvas-bg border border-panel-border rounded text-text-primary text-sm
+           px-2.5 py-1.5 transition-colors duration-150
+           placeholder:text-text-muted
+           focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500;
+  }
+
+  .input-base:hover {
+    @apply border-surface-overlay;
+  }
+
+  /* ── Select ─────────────────────────────────────────────────────────────── */
+  .select-base {
+    @apply w-full bg-canvas-bg border border-panel-border rounded text-text-primary text-sm
+           px-2.5 py-1.5 transition-colors duration-150 cursor-pointer appearance-none
+           focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%238b93b0' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 32px;
+  }
+
+  /* ── Button variants ────────────────────────────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 font-medium rounded transition-all duration-150
+           focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-panel-bg
+           disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer select-none;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-500 active:bg-brand-700
+           focus:ring-brand-500 shadow-sm;
+  }
+
+  .btn-secondary {
+    @apply btn bg-surface-raised text-text-primary hover:bg-surface-overlay active:bg-surface
+           border border-panel-border focus:ring-brand-600;
+  }
+
+  .btn-ghost {
+    @apply btn text-text-secondary hover:text-text-primary hover:bg-surface-raised
+           focus:ring-brand-600;
+  }
+
+  .btn-danger {
+    @apply btn bg-error text-white hover:bg-error/90 active:bg-red-700
+           focus:ring-error;
+  }
+
+  .btn-sm { @apply text-xs px-2.5 py-1; }
+  .btn-md { @apply text-sm px-3.5 py-2; }
+  .btn-lg { @apply text-base px-5 py-2.5; }
+  .btn-icon { @apply p-1.5; }
+
+  /* ── Toolbar tool button ────────────────────────────────────────────────── */
+  .tool-btn {
+    @apply flex flex-col items-center justify-center gap-0.5 w-full py-2.5 px-1
+           text-text-muted rounded transition-all duration-150 cursor-pointer select-none
+           hover:bg-surface-raised hover:text-text-primary relative;
+  }
+
+  .tool-btn.active {
+    @apply bg-brand-600/20 text-brand-400;
+  }
+
+  .tool-btn.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 60%;
+    background: #4d64ff;
+    border-radius: 0 2px 2px 0;
+  }
+
+  /* ── Inspector section ───────────────────────────────────────────────────── */
+  .inspector-section {
+    @apply border-b border-panel-border last:border-b-0;
+  }
+
+  .inspector-section-header {
+    @apply flex items-center justify-between px-3 py-2.5 text-2xs font-semibold
+           tracking-widest uppercase text-text-muted cursor-pointer
+           hover:text-text-secondary transition-colors;
+  }
+
+  .inspector-field {
+    @apply px-3 pb-3;
+  }
+
+  .inspector-label {
+    @apply block text-2xs text-text-muted mb-1 font-medium;
+  }
+
+  /* ── Status badges ──────────────────────────────────────────────────────── */
+  .status-saved {
+    @apply text-success text-2xs font-medium;
+  }
+  .status-saving {
+    @apply text-text-muted text-2xs font-medium;
+  }
+  .status-unsaved {
+    @apply text-warning text-2xs font-medium;
+  }
+  .status-error {
+    @apply text-error text-2xs font-medium;
+  }
+
+  /* ── Modal overlay ──────────────────────────────────────────────────────── */
+  .modal-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+    background: rgba(8, 10, 15, 0.85);
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-panel {
+    @apply bg-panel-bg rounded-lg border border-panel-border w-full animate-fade-in;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 24px 64px rgba(0,0,0,0.7);
+  }
+
+  /* ── Canvas cursor states ───────────────────────────────────────────────── */
+  .cursor-grab { cursor: grab; }
+  .cursor-grabbing { cursor: grabbing; }
+  .cursor-crosshair { cursor: crosshair; }
+}
