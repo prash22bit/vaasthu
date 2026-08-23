@@ -95,18 +95,17 @@ export type DesignEntityType =
 
 /**
  * Base interface for all design entities.
- * Future phases will extend this with entity-specific fields.
  */
 export interface DesignEntity {
   id: string;
   type: DesignEntityType;
-  /** World-coordinate position (top-left origin) */
+  /** World-coordinate position (top-left origin for room, start point for wall) */
   position: WorldPoint;
   /** Rotation in degrees (clockwise) */
   rotation: number;
   /** World-coordinate dimensions */
   dimensions: WorldDimensions;
-  /** Entity-specific properties (open-ended for future entities) */
+  /** Entity-specific properties */
   properties: Record<string, unknown>;
   /** Floor index this entity belongs to */
   floorIndex: number;
@@ -114,6 +113,53 @@ export interface DesignEntity {
   locked: boolean;
   /** Whether the entity is visible */
   visible: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Specific Entity Property Interfaces
+// ---------------------------------------------------------------------------
+
+export interface WallProperties {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  /** Thickness in world units (e.g. 0.375 ft for 4.5 inches, 0.5 ft for 6 inches) */
+  thickness: number;
+  [key: string]: unknown;
+}
+
+export interface WallEntity extends DesignEntity {
+  type: 'wall';
+  properties: WallProperties;
+}
+
+export interface RoomProperties {
+  name: string;
+  color?: string;
+  [key: string]: unknown;
+}
+
+export interface RoomEntity extends DesignEntity {
+  type: 'room';
+  properties: RoomProperties;
+}
+
+export interface DimensionProperties {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  /** Optional ID of entity being measured (wall or room) for associative updates */
+  associatedEntityId?: string;
+  measurementType?: 'length' | 'width' | 'custom';
+  offset: number;
+  [key: string]: unknown;
+}
+
+export interface DimensionEntity extends DesignEntity {
+  type: 'dimension';
+  properties: DimensionProperties;
 }
 
 // ---------------------------------------------------------------------------
@@ -181,6 +227,7 @@ export type HistoryActionType =
   | 'DELETE_ENTITY'
   | 'MOVE_ENTITY'
   | 'RESIZE_ENTITY'
+  | 'ROTATE_ENTITY'
   | 'CREATE_FLOOR'
   | 'DELETE_FLOOR'
   | 'UPDATE_SETTINGS';

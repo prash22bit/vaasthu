@@ -1,4 +1,4 @@
-import type { WorldPoint, ScreenPoint, WorldBounds } from '@vastuplan/shared';
+import type { WorldPoint, ScreenPoint, WorldBounds, WorldDimensions } from '@vastuplan/shared';
 import { BASE_PIXELS_PER_UNIT } from '../constants';
 
 // ---------------------------------------------------------------------------
@@ -210,4 +210,143 @@ export function snapPointToGrid(point: WorldPoint, cellSize: number): WorldPoint
     x: snapToGrid(point.x, cellSize),
     y: snapToGrid(point.y, cellSize),
   };
+}
+
+/**
+ * Euclidean distance between two points in world coordinates.
+ */
+export function distanceBetweenPoints(p1: WorldPoint, p2: WorldPoint): number {
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  return Math.hypot(dx, dy);
+}
+
+/**
+ * Calculate the angle from p1 to p2 in degrees (0 to 360, 0 = East / right).
+ */
+export function calculateAngle(p1: WorldPoint, p2: WorldPoint): number {
+  const rad = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+  let deg = (rad * 180) / Math.PI;
+  if (deg < 0) deg += 360;
+  return deg;
+}
+
+/**
+ * Calculate rectangle area.
+ */
+export function calculateRectangleArea(width: number, height: number): number {
+  return Math.abs(width * height);
+}
+
+/**
+ * Snap angle to nearest increment (e.g., 45° or 90°) if within threshold (e.g. 5°).
+ */
+export function snapAngle(angle: number, step = 45, threshold = 6): number {
+  const nearest = Math.round(angle / step) * step;
+  const diff = Math.abs(angle - nearest);
+  if (diff <= threshold || Math.abs(diff - 360) <= threshold) {
+    return (nearest % 360 + 360) % 360;
+  }
+  return angle;
+}
+
+/**
+ * Project a point onto a line segment [lineStart, lineEnd].
+ * Clamps projection to line segment bounds [0, 1].
+ */
+export function projectPointOntoLine(
+  point: WorldPoint,
+  lineStart: WorldPoint,
+  lineEnd: WorldPoint
+): { point: WorldPoint; t: number; distance: number } {
+  const dx = lineEnd.x - lineStart.x;
+  const dy = lineEnd.y - lineStart.y;
+  const lenSq = dx * dx + dy * dy;
+
+  if (lenSq === 0) {
+    const dist = distanceBetweenPoints(point, lineStart);
+    return { point: { ...lineStart }, t: 0, distance: dist };
+  }
+
+  // Parameter t of closest point
+  let t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t)); // clamp to segment
+
+  const projPoint = {
+    x: lineStart.x + t * dx,
+    y: lineStart.y + t * dy,
+  };
+
+  const distance = distanceBetweenPoints(point, projPoint);
+  return { point: projPoint, t, distance };
+}
+
+/**
+ * Check if a point is within threshold distance of a line segment.
+ */
+export function isPointNearLine(
+  point: WorldPoint,
+  lineStart: WorldPoint,
+  lineEnd: WorldPoint,
+  threshold: number
+): boolean {
+  const { distance } = projectPointOntoLine(point, lineStart, lineEnd);
+  return distance <= threshold;
+}
+
+/**
+ * Align multiple entities along a specified axis.
+ */
+export function alignEntities<T extends { position: WorldPoint; dimensions: WorldDimensions }>(
+  entities: T[],
+  alignmentType: 'left' | 'right' | 'top' | 'bottom' | 'center-h' | 'center-v'
+): T[] {
+  if (entities.length <= 1) return entities;
+
+  let targetValue: number;
+  switch (alignmentType) {
+    case 'left':
+      targetValue = Math.min(...entities.map((e) => e.position.x));
+      return entities.map((e) => ({ ...e, position: { ...e.position, x: targetValue } }));
+
+    case 'right': {
+      const maxRight = Math.max(...entities.map((e) => e.position.x + e.dimensions.width));
+      return entities.map((e) => ({
+        ...e,
+        position: { ...e.position, x: maxRight - e.dimensions.width },
+      }));
+    }
+
+    case 'top':
+      targetValue = Math.min(...entities.map((e) => e.position.y));
+      return entities.map((e) => ({ ...e, position: { ...e.position, y: targetValue } }));
+
+    case 'bottom': {
+      const maxBottom = Math.max(...entities.map((e) => e.position.y + e.dimensions.height));
+      return entities.map((e) => ({
+        ...e,
+        position: { ...e.position, y: maxBottom - e.dimensions.height },
+      }));
+    }
+
+    case 'center-h': {
+      const avgCenterX =
+        entities.reduce((sum, e) => sum + e.position.x + e.dimensions.width / 2, 0) /
+        entities.length;
+      return entities.map((e) => ({
+        ...e,
+        position: { ...e.position, x: avgCenterX - e.dimensions.width / 2 },
+      }));
+    }
+
+    case 'center-v': {
+      const avgCenterY =
+        entities.reduce((sum, e) => sum + e.position.y + e.dimensions.height / 2, 0) /
+        entities.length;
+      return entities.map((e) => ({
+        ...e,
+        position: { ...e.position, y: avgCenterY - e.dimensions.height / 2 },
+      }));
+    }
+  }
 }

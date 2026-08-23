@@ -66,6 +66,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({ plotInfo, zoom }) => {
             <span className="text-text-muted mr-1">Area:</span>
             {plotInfo.area.toFixed(0)} {plotInfo.unit === 'feet' ? 'sq.ft' : 'm²'}
           </span>
+          <span className="text-text-secondary">
+            <span className="text-text-muted mr-1">Objects:</span>
+            {useProjectStore.getState().currentProject?.floors[0]?.entities.length || 0}
+          </span>
         </>
       ) : (
         <span className="text-text-muted">No project open</span>

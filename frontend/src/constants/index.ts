@@ -100,11 +100,11 @@ export type ToolId =
 export const TOOLS: { id: ToolId; label: string; icon: string; shortcut?: string; disabled?: boolean }[] = [
   { id: 'select', label: 'Select', icon: 'MousePointer', shortcut: 'V' },
   { id: 'pan', label: 'Pan', icon: 'Hand', shortcut: 'H' },
-  { id: 'wall', label: 'Wall', icon: 'Minus', shortcut: 'W', disabled: true },
-  { id: 'room', label: 'Room', icon: 'Square', shortcut: 'R', disabled: true },
-  { id: 'door', label: 'Door', icon: 'DoorOpen', shortcut: 'D', disabled: true },
+  { id: 'wall', label: 'Wall', icon: 'Minus', shortcut: 'W' },
+  { id: 'room', label: 'Room', icon: 'Square', shortcut: 'R' },
+  { id: 'door', label: 'Door', icon: 'DoorOpen', shortcut: 'O', disabled: true },
   { id: 'window', label: 'Window', icon: 'AppWindow', shortcut: 'N', disabled: true },
-  { id: 'dimension', label: 'Dim', icon: 'Ruler', shortcut: 'M', disabled: true },
+  { id: 'dimension', label: 'Dim', icon: 'Ruler', shortcut: 'D' },
 ];
 
 // ---------------------------------------------------------------------------

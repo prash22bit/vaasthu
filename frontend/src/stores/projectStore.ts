@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { Project, CreateProjectPayload, UpdateProjectPayload, SaveStatus, Plot } from '@vastuplan/shared';
+import type {
+  Project,
+  CreateProjectPayload,
+  UpdateProjectPayload,
+  SaveStatus,
+  Plot,
+  DesignEntity,
+  WallEntity,
+  DimensionEntity,
+} from '@vastuplan/shared';
 import { projectApi } from '../api/projectApi';
 
 interface ProjectStore {
@@ -21,6 +30,11 @@ interface ProjectStore {
   setCurrentProject: (project: Project | null) => void;
   updateCurrentProject: (updates: Partial<Project>) => void;
   updateCurrentPlot: (plotUpdates: Partial<Plot>) => void;
+  // Entity operations
+  addEntity: (entity: DesignEntity, floorIndex?: number) => void;
+  updateEntity: (id: string, updates: Partial<DesignEntity>, floorIndex?: number) => void;
+  deleteEntities: (ids: string[], floorIndex?: number) => void;
+  duplicateEntities: (ids: string[], floorIndex?: number) => string[];
   setSaveStatus: (status: SaveStatus) => void;
   clearError: () => void;
   saveCurrentProject: () => Promise<void>;
@@ -135,6 +149,133 @@ export const useProjectStore = create<ProjectStore>()(
         Object.assign(s.currentProject, updates);
         s.saveStatus = 'unsaved';
       });
+    },
+
+    // ── Entity Operations ──
+    addEntity: (entity: DesignEntity, floorIndex = 0) => {
+      set((s) => {
+        if (!s.currentProject) return;
+        if (!s.currentProject.floors[floorIndex]) {
+          s.currentProject.floors[floorIndex] = {
+            id: `floor_${floorIndex}`,
+            name: floorIndex === 0 ? 'Ground Floor' : `Floor ${floorIndex}`,
+            level: floorIndex,
+            entities: [],
+            floorHeight: 10,
+          };
+        }
+        s.currentProject.floors[floorIndex].entities.push(entity);
+        s.saveStatus = 'unsaved';
+      });
+    },
+
+    updateEntity: (id: string, updates: Partial<DesignEntity>, floorIndex = 0) => {
+      set((s) => {
+        if (!s.currentProject) return;
+        const floor = s.currentProject.floors[floorIndex];
+        if (!floor) return;
+
+        const idx = floor.entities.findIndex((e) => e.id === id);
+        if (idx === -1) return;
+
+        const existing = floor.entities[idx];
+        const updatedProperties = updates.properties
+          ? { ...existing.properties, ...updates.properties }
+          : existing.properties;
+
+        floor.entities[idx] = {
+          ...existing,
+          ...updates,
+          properties: updatedProperties,
+        };
+
+        // Associative dimension updates
+        const updatedEntity = floor.entities[idx];
+        if (updatedEntity.type === 'wall') {
+          const wall = updatedEntity as WallEntity;
+          floor.entities.forEach((e) => {
+            if (e.type === 'dimension' && (e as DimensionEntity).properties.associatedEntityId === id) {
+              const dim = e as DimensionEntity;
+              dim.properties.startX = wall.properties.startX;
+              dim.properties.startY = wall.properties.startY;
+              dim.properties.endX = wall.properties.endX;
+              dim.properties.endY = wall.properties.endY;
+            }
+          });
+        }
+
+        s.saveStatus = 'unsaved';
+      });
+    },
+
+    deleteEntities: (ids: string[], floorIndex = 0) => {
+      set((s) => {
+        if (!s.currentProject) return;
+        const floor = s.currentProject.floors[floorIndex];
+        if (!floor) return;
+
+        const idSet = new Set(ids);
+        floor.entities = floor.entities.filter((e) => !idSet.has(e.id));
+        // Remove dimensions associated with deleted entities
+        floor.entities = floor.entities.filter(
+          (e) => e.type !== 'dimension' || !idSet.has((e as DimensionEntity).properties.associatedEntityId || '')
+        );
+
+        s.saveStatus = 'unsaved';
+      });
+    },
+
+    duplicateEntities: (ids: string[], floorIndex = 0) => {
+      const newIds: string[] = [];
+      const offset = 2; // 2 ft offset for duplicates
+
+      set((s) => {
+        if (!s.currentProject) return;
+        const floor = s.currentProject.floors[floorIndex];
+        if (!floor) return;
+
+        const idSet = new Set(ids);
+        const toDuplicate = floor.entities.filter((e) => idSet.has(e.id));
+
+        toDuplicate.forEach((entity) => {
+          const newId = `${entity.type}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+          newIds.push(newId);
+
+          let newProperties = { ...entity.properties };
+          if (entity.type === 'wall') {
+            const wProp = entity.properties as unknown as { startX: number; startY: number; endX: number; endY: number; thickness: number };
+            newProperties = {
+              ...wProp,
+              startX: wProp.startX + offset,
+              startY: wProp.startY + offset,
+              endX: wProp.endX + offset,
+              endY: wProp.endY + offset,
+            };
+          } else if (entity.type === 'room') {
+            const rProp = entity.properties as unknown as { name: string };
+            newProperties = {
+              ...rProp,
+              name: `${rProp.name} (Copy)`,
+            };
+          }
+
+          const copy: DesignEntity = {
+            ...entity,
+            id: newId,
+            position: {
+              x: entity.position.x + offset,
+              y: entity.position.y + offset,
+            },
+            properties: newProperties,
+          };
+
+          floor.entities.push(copy);
+        });
+
+        s.saveStatus = 'unsaved';
+      });
+
+      return newIds;
     },
 
     // ── Update current project's plot (for real-time inspector edits) ──

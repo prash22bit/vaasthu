@@ -12,6 +12,15 @@ import {
 import { clampZoom, calcPanForZoomToPoint, screenToWorld } from '../utils/geometry';
 import { BASE_PIXELS_PER_UNIT } from '../constants';
 
+import type { WorldPoint } from '@vastuplan/shared';
+import type { SnapResult } from '../utils/snapping';
+
+export interface DrawingState {
+  isDrawing: boolean;
+  startPoint: WorldPoint | null;
+  currentPoint: WorldPoint | null;
+}
+
 interface CanvasStore {
   // View
   zoom: number;
@@ -23,7 +32,12 @@ interface CanvasStore {
 
   // Selection
   selectedEntityId: string | null;
+  selectedEntityIds: string[];
   selectedEntityType: DesignEntityType | null;
+
+  // Drawing & CAD State
+  drawingState: DrawingState;
+  snapResult: SnapResult | null;
 
   // Interaction
   isPanning: boolean;
@@ -40,7 +54,11 @@ interface CanvasStore {
   setIsPanning: (isPanning: boolean) => void;
   setCanvasSize: (width: number, height: number) => void;
   setSelectedEntity: (id: string | null, type?: DesignEntityType | null) => void;
+  setSelectedEntities: (ids: string[], type?: DesignEntityType | null) => void;
+  toggleSelectEntity: (id: string, type?: DesignEntityType | null) => void;
   clearSelection: () => void;
+  setDrawingState: (state: Partial<DrawingState>) => void;
+  setSnapResult: (snap: SnapResult | null) => void;
   updateGrid: (updates: Partial<GridSettings>) => void;
   fitToPlot: (plotWidth: number, plotHeight: number) => void;
 }
@@ -54,10 +72,17 @@ export const useCanvasStore = create<CanvasStore>()(
     grid: {
       visible: true,
       cellSize: GRID_DEFAULT_CELL_SIZE,
-      snapToGrid: false,
+      snapToGrid: true,
     },
     selectedEntityId: null,
+    selectedEntityIds: [],
     selectedEntityType: null,
+    drawingState: {
+      isDrawing: false,
+      startPoint: null,
+      currentPoint: null,
+    },
+    snapResult: null,
     isPanning: false,
     canvasWidth: 800,
     canvasHeight: 600,
@@ -157,12 +182,51 @@ export const useCanvasStore = create<CanvasStore>()(
     setSelectedEntity: (id: string | null, type?: DesignEntityType | null) => {
       set((s) => {
         s.selectedEntityId = id;
+        s.selectedEntityIds = id ? [id] : [];
+        s.selectedEntityType = type ?? null;
+      });
+    },
+
+    setSelectedEntities: (ids: string[], type?: DesignEntityType | null) => {
+      set((s) => {
+        s.selectedEntityIds = ids;
+        s.selectedEntityId = ids.length === 1 ? ids[0] : null;
+        s.selectedEntityType = type ?? null;
+      });
+    },
+
+    toggleSelectEntity: (id: string, type?: DesignEntityType | null) => {
+      set((s) => {
+        const idx = s.selectedEntityIds.indexOf(id);
+        if (idx >= 0) {
+          s.selectedEntityIds.splice(idx, 1);
+        } else {
+          s.selectedEntityIds.push(id);
+        }
+        s.selectedEntityId = s.selectedEntityIds.length === 1 ? s.selectedEntityIds[0] : null;
         s.selectedEntityType = type ?? null;
       });
     },
 
     clearSelection: () => {
-      set((s) => { s.selectedEntityId = null; s.selectedEntityType = null; });
+      set((s) => {
+        s.selectedEntityId = null;
+        s.selectedEntityIds = [];
+        s.selectedEntityType = null;
+      });
+    },
+
+    // ── CAD Drawing & Snapping ──
+    setDrawingState: (state: Partial<DrawingState>) => {
+      set((s) => {
+        s.drawingState = { ...s.drawingState, ...state };
+      });
+    },
+
+    setSnapResult: (snap: SnapResult | null) => {
+      set((s) => {
+        s.snapResult = snap;
+      });
     },
 
     // ── Grid settings ──
