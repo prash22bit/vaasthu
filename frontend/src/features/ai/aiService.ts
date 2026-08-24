@@ -1,72 +1,50 @@
 // =============================================================================
-// VastuPlan — AI Service (Phase 4 Architecture Stub)
+// VastuPlan — AI Service
 //
-// This module defines the architecture for the AI design assistant.
-// The actual AI integration will be implemented in Phase 4.
-//
-// Architecture principles:
-//   - AI communicates via structured commands, not direct DOM/state manipulation
-//   - The design engine validates and applies commands — AI cannot bypass validation
-//   - Commands are human-readable and loggable
+// Client-side API caller for the AI design assistant.
+// Communicates with backend POST /api/ai/chat.
+// Handles timeouts, network errors, and normalizes responses.
 // =============================================================================
 
-import type { AICommand, AIResponse, Project } from '@vastuplan/shared';
+import axios, { AxiosError } from 'axios';
+import type {
+  AIChatRequest,
+  AIChatResponse,
+  ApiSuccess,
+  ApiError,
+} from '@vastuplan/shared';
+import { API_BASE_URL } from '../../constants';
 
-// ---------------------------------------------------------------------------
-// Command executor (stub)
-// ---------------------------------------------------------------------------
+const aiApi = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 45000, // 45 seconds for LLM generation
+  headers: { 'Content-Type': 'application/json' },
+});
 
-/**
- * Execute an AI command against the design engine.
- * The AI should NOT directly manipulate state — it issues commands.
- * The design engine (geometry utils + stores) applies and validates them.
- *
- * Will be fully implemented in Phase 4.
- */
-export async function executeAICommand(
-  _command: AICommand,
-  _project: Project
-): Promise<{ success: boolean; message: string }> {
-  // TODO (Phase 4): Route command to appropriate design engine action
-  return {
-    success: false,
-    message: 'AI assistant is not yet available. Coming in Phase 4.',
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Natural language to command translation (stub)
-// ---------------------------------------------------------------------------
-
-/**
- * Translate a natural language prompt to structured AI commands.
- * Will call an LLM API in Phase 4.
- *
- * Example prompt: "Add a 14x16 bedroom in the south-west"
- * Example response: [{ action: 'create_room', params: { width: 14, height: 16, zone: 'south-west', name: 'Bedroom' } }]
- */
-export async function parseNaturalLanguage(
-  _prompt: string,
-  _project: Project
-): Promise<AIResponse> {
-  // TODO (Phase 4): Send prompt + project context to LLM, parse structured commands
-  return {
-    commands: [],
-    explanation: 'AI assistant is not yet available. Coming in Phase 4.',
-    confidence: 0,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Command validation
-// ---------------------------------------------------------------------------
-
-/**
- * Validate that an AI command is geometrically feasible.
- * The design engine always validates — AI commands cannot bypass this.
- */
-export function validateAICommand(_command: AICommand, _project: Project): boolean {
-  // TODO (Phase 4): Check that command parameters are within plot bounds,
-  // don't overlap existing entities, respect Vastu constraints, etc.
-  return false;
+export async function sendChatMessage(
+  request: AIChatRequest
+): Promise<AIChatResponse> {
+  try {
+    const res = await aiApi.post<ApiSuccess<AIChatResponse>>('/ai/chat', request);
+    if (res.data && res.data.success && res.data.data) {
+      return res.data.data;
+    }
+    throw new Error('Invalid response structure from AI service');
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const axiosErr = error as AxiosError<ApiError>;
+      if (axiosErr.response?.data?.error) {
+        throw new Error(axiosErr.response.data.error);
+      }
+      if (axiosErr.code === 'ECONNABORTED') {
+        throw new Error('AI request timed out. The model took too long to respond.');
+      }
+      if (axiosErr.response?.status === 503) {
+        throw new Error('AI assistant is currently unavailable. (AI_API_KEY not configured on backend)');
+      }
+    }
+    throw new Error(
+      error instanceof Error ? error.message : 'Failed to communicate with AI service'
+    );
+  }
 }

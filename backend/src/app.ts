@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import projectRoutes from './routes/projectRoutes';
 import healthRoutes from './routes/healthRoutes';
+import aiRoutes from './routes/aiRoutes';
 
 export function createApp(): Application {
   const app = express();
@@ -56,6 +57,7 @@ export function createApp(): Application {
   // -------------------------------------------------------------------------
   app.use('/api/health', healthRoutes);
   app.use('/api/projects', projectRoutes);
+  app.use('/api/ai', aiRoutes);
 
   // -------------------------------------------------------------------------
   // Error handling (must be last)

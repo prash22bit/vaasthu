@@ -82,9 +82,39 @@ export function useKeyboard() {
           setActiveTool('select');
           return;
         }
+        if (keyLower === 'h') {
+          e.preventDefault();
+          setActiveTool('pan');
+          return;
+        }
         if (keyLower === 'w') {
           e.preventDefault();
           setActiveTool('wall');
+          return;
+        }
+        if (keyLower === 'c') {
+          e.preventDefault();
+          setActiveTool('column');
+          return;
+        }
+        if (keyLower === 'b') {
+          e.preventDefault();
+          setActiveTool('compound-wall');
+          return;
+        }
+        if (keyLower === 'o') {
+          e.preventDefault();
+          setActiveTool('door');
+          return;
+        }
+        if (keyLower === 'n') {
+          e.preventDefault();
+          setActiveTool('window');
+          return;
+        }
+        if (keyLower === 'g') {
+          e.preventDefault();
+          setActiveTool('gate');
           return;
         }
         if (keyLower === 'r') {
@@ -92,14 +122,24 @@ export function useKeyboard() {
           setActiveTool('room');
           return;
         }
+        if (keyLower === 'p') {
+          e.preventDefault();
+          setActiveTool('parking');
+          return;
+        }
+        if (keyLower === 'k') {
+          e.preventDefault();
+          setActiveTool('garden');
+          return;
+        }
+        if (keyLower === 't') {
+          e.preventDefault();
+          setActiveTool('staircase');
+          return;
+        }
         if (keyLower === 'd') {
           e.preventDefault();
           setActiveTool('dimension');
-          return;
-        }
-        if (keyLower === 'h') {
-          e.preventDefault();
-          setActiveTool('pan');
           return;
         }
       }

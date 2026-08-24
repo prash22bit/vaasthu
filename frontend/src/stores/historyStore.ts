@@ -61,36 +61,36 @@ export const useHistoryStore = create<HistoryStore>()(
     undo: () => {
       const { past } = get();
       if (past.length === 0) return null;
+      const action = past[past.length - 1];
 
-      let action: HistoryAction | undefined;
       set((s) => {
-        action = s.past.pop();
-        if (action) {
-          s.future.unshift(action);
+        const popped = s.past.pop();
+        if (popped) {
+          s.future.unshift(popped);
         }
         s.canUndo = s.past.length > 0;
         s.canRedo = s.future.length > 0;
       });
 
-      return action ?? null;
+      return action;
     },
 
     // ── Redo — returns the action that was re-applied ──
     redo: () => {
       const { future } = get();
       if (future.length === 0) return null;
+      const action = future[0];
 
-      let action: HistoryAction | undefined;
       set((s) => {
-        action = s.future.shift();
-        if (action) {
-          s.past.push(action);
+        const shifted = s.future.shift();
+        if (shifted) {
+          s.past.push(shifted);
         }
         s.canUndo = s.past.length > 0;
         s.canRedo = s.future.length > 0;
       });
 
-      return action ?? null;
+      return action;
     },
 
     // ── Clear all history ──

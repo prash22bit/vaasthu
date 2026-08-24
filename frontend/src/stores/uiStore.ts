@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { ToolId } from '../constants';
 
+export type RightPanelContext = 'inspector' | 'vastu' | 'ai';
+
 interface UIStore {
   activeTool: ToolId;
   isNewProjectModalOpen: boolean;
@@ -11,6 +13,7 @@ interface UIStore {
   isToolbarCollapsed: boolean;
   isProjectListOpen: boolean;
   backendConnected: boolean | null; // null = unknown
+  rightPanelContext: RightPanelContext;
 
   // Actions
   setActiveTool: (tool: ToolId) => void;
@@ -23,6 +26,7 @@ interface UIStore {
   toggleProjectList: () => void;
   setProjectListOpen: (open: boolean) => void;
   setBackendConnected: (connected: boolean) => void;
+  setRightPanelContext: (context: RightPanelContext) => void;
 }
 
 export const useUIStore = create<UIStore>()(
@@ -35,6 +39,7 @@ export const useUIStore = create<UIStore>()(
     isToolbarCollapsed: false,
     isProjectListOpen: false,
     backendConnected: null,
+    rightPanelContext: 'inspector',
 
     setActiveTool: (tool) => set((s) => { s.activeTool = tool; }),
 
@@ -55,5 +60,7 @@ export const useUIStore = create<UIStore>()(
     toggleProjectList: () => set((s) => { s.isProjectListOpen = !s.isProjectListOpen; }),
     setProjectListOpen: (open) => set((s) => { s.isProjectListOpen = open; }),
     setBackendConnected: (connected) => set((s) => { s.backendConnected = connected; }),
+    setRightPanelContext: (context) => set((s) => { s.rightPanelContext = context; }),
   }))
 );
+

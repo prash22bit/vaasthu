@@ -3,17 +3,28 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useHistory } from '../../hooks/useHistory';
 import { useCanvasStore } from '../../stores/canvasStore';
+import { useVastuStore } from '../../features/vastu/vastuStore';
+import { useAIStore } from '../../features/ai/aiStore';
 import {
   Undo2, Redo2, Save, FolderOpen, Plus, ChevronDown,
-  Loader2, Wifi, WifiOff
+  Loader2, Wifi, WifiOff, Bot, Sliders, Sparkles
 } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 
 export const Header: React.FC = () => {
   const { currentProject, saveStatus, saveCurrentProject, error } = useProjectStore();
   const { undo, redo, canUndo, canRedo } = useHistory();
-  const { openNewProjectModal, toggleProjectList, isProjectListOpen, backendConnected } = useUIStore();
+  const {
+    openNewProjectModal,
+    toggleProjectList,
+    isProjectListOpen,
+    backendConnected,
+    rightPanelContext,
+    setRightPanelContext,
+  } = useUIStore();
   const zoom = useCanvasStore((s) => s.zoom);
+  const { setVastuActive } = useVastuStore();
+  const { setAIActive } = useAIStore();
 
   const [isSaving, setIsSaving] = React.useState(false);
 
@@ -25,6 +36,12 @@ export const Header: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSwitchPanel = (context: 'inspector' | 'vastu' | 'ai') => {
+    setRightPanelContext(context);
+    setVastuActive(context === 'vastu');
+    setAIActive(context === 'ai');
   };
 
   const saveLabel = {
@@ -49,8 +66,8 @@ export const Header: React.FC = () => {
           <span className="text-white font-bold text-xs">V</span>
         </div>
         <span className="text-text-primary font-semibold text-sm tracking-tight">VastuPlan</span>
-        <span className="text-text-muted text-2xs font-medium bg-surface px-1.5 py-0.5 rounded">
-          Phase 1
+        <span className="text-brand-400 text-2xs font-semibold bg-brand-500/10 border border-brand-500/20 px-1.5 py-0.5 rounded">
+          Phase 5
         </span>
       </div>
 
@@ -145,6 +162,59 @@ export const Header: React.FC = () => {
           <span className={`text-xs ${saveColor}`}>{saveLabel}</span>
         </button>
       </Tooltip>
+
+      {/* Right panel context switchers */}
+      {currentProject && (
+        <div className="flex items-center gap-1 bg-surface/70 border border-panel-border p-0.5 rounded-lg">
+          <Tooltip content="Entity Inspector" side="bottom">
+            <button
+              id="header-inspector-btn"
+              className={`btn btn-xs gap-1 ${
+                rightPanelContext === 'inspector'
+                  ? 'bg-panel-bg text-text-primary shadow-xs border border-panel-border font-medium'
+                  : 'btn-ghost text-text-muted hover:text-text-secondary'
+              }`}
+              onClick={() => handleSwitchPanel('inspector')}
+              aria-label="Inspector Panel"
+            >
+              <Sliders size={12} />
+              <span className="text-2xs">Inspector</span>
+            </button>
+          </Tooltip>
+
+          <Tooltip content="Vastu Intelligence Analysis" side="bottom">
+            <button
+              id="header-vastu-btn"
+              className={`btn btn-xs gap-1 ${
+                rightPanelContext === 'vastu'
+                  ? 'bg-brand-600/30 text-brand-400 border border-brand-500/50 font-medium'
+                  : 'btn-ghost text-text-muted hover:text-text-secondary'
+              }`}
+              onClick={() => handleSwitchPanel('vastu')}
+              aria-label="Vastu Analysis Panel"
+            >
+              <span className="text-2xs">🔯</span>
+              <span className="text-2xs">Vastu</span>
+            </button>
+          </Tooltip>
+
+          <Tooltip content="AI Design Assistant" side="bottom">
+            <button
+              id="header-ai-btn"
+              className={`btn btn-xs gap-1 ${
+                rightPanelContext === 'ai'
+                  ? 'bg-brand-600 text-white shadow-xs border border-brand-500 font-medium'
+                  : 'btn-ghost text-text-muted hover:text-brand-400'
+              }`}
+              onClick={() => handleSwitchPanel('ai')}
+              aria-label="AI Design Assistant Panel"
+            >
+              <Bot size={12} />
+              <span className="text-2xs">AI Assistant</span>
+            </button>
+          </Tooltip>
+        </div>
+      )}
 
       {/* Separator */}
       <div className="w-px h-5 bg-panel-border mx-1" />

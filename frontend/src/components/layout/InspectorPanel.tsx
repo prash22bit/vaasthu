@@ -7,9 +7,29 @@ import { PlotInspector } from '../inspector/PlotInspector';
 import { WallInspector } from '../inspector/WallInspector';
 import { RoomInspector } from '../inspector/RoomInspector';
 import { DimensionInspector } from '../inspector/DimensionInspector';
+import { DoorInspector } from '../inspector/DoorInspector';
+import { WindowInspector } from '../inspector/WindowInspector';
+import { StaircaseInspector } from '../inspector/StaircaseInspector';
+import { ColumnInspector } from '../inspector/ColumnInspector';
+import { ParkingInspector } from '../inspector/ParkingInspector';
+import { GardenInspector } from '../inspector/GardenInspector';
+import { CompoundWallInspector } from '../inspector/CompoundWallInspector';
+import { GateInspector } from '../inspector/GateInspector';
 import { MultiEntityInspector } from '../inspector/MultiEntityInspector';
 import { EmptyInspector } from '../inspector/EmptyInspector';
-import type { WallEntity, RoomEntity, DimensionEntity } from '@vastuplan/shared';
+import type {
+  WallEntity,
+  RoomEntity,
+  DimensionEntity,
+  DoorEntity,
+  WindowEntity,
+  StaircaseEntity,
+  ColumnEntity,
+  ParkingEntity,
+  GardenEntity,
+  CompoundWallEntity,
+  GateEntity,
+} from '@vastuplan/shared';
 
 export const InspectorPanel: React.FC = () => {
   const { selectedEntityId, selectedEntityIds, selectedEntityType } = useCanvasStore();
@@ -44,6 +64,30 @@ export const InspectorPanel: React.FC = () => {
       }
       if (entity.type === 'dimension') {
         return <DimensionInspector dimension={entity as unknown as DimensionEntity} unit={unit} />;
+      }
+      if (entity.type === 'door') {
+        return <DoorInspector door={entity as unknown as DoorEntity} unit={unit} />;
+      }
+      if (entity.type === 'window') {
+        return <WindowInspector windowEntity={entity as unknown as WindowEntity} unit={unit} />;
+      }
+      if (entity.type === 'staircase') {
+        return <StaircaseInspector staircase={entity as unknown as StaircaseEntity} unit={unit} />;
+      }
+      if (entity.type === 'column') {
+        return <ColumnInspector column={entity as unknown as ColumnEntity} unit={unit} />;
+      }
+      if (entity.type === 'parking') {
+        return <ParkingInspector parking={entity as unknown as ParkingEntity} unit={unit} />;
+      }
+      if (entity.type === 'garden') {
+        return <GardenInspector garden={entity as unknown as GardenEntity} unit={unit} />;
+      }
+      if (entity.type === 'compound-wall') {
+        return <CompoundWallInspector compoundWall={entity as unknown as CompoundWallEntity} unit={unit} />;
+      }
+      if (entity.type === 'gate') {
+        return <GateInspector gate={entity as unknown as GateEntity} unit={unit} />;
       }
     }
 

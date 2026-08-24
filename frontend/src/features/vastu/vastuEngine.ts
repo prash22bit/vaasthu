@@ -1,107 +1,104 @@
-// =============================================================================
-// VastuPlan — Vastu Engine (Phase 3 Architecture Stub)
-//
-// This module defines the architecture for the Vastu analysis engine.
-// The actual rules and analysis logic will be implemented in Phase 3.
-//
-// Architecture principles:
-//   - Rules are data-driven, not scattered if/else statements
-//   - Each rule is independently configurable
-//   - The engine is invoked explicitly, never from UI components
-// =============================================================================
+/**
+ * vastuEngine.ts — Vastu Analysis Entry Point
+ *
+ * analyzeVastu(project, floorIndex?, settings?) is the single public function.
+ *
+ * Pipeline:
+ *   Project (read-only)
+ *       ↓
+ *   getFloor()
+ *       ↓
+ *   buildVastuZoneMap()     ← geometry, not Konva
+ *       ↓
+ *   evaluateRules()         ← data-driven, no if/else per rule
+ *       ↓
+ *   calculateCategoryScores()
+ *       ↓
+ *   calculateOverallScore()
+ *       ↓
+ *   buildRecommendations()
+ *       ↓
+ *   VastuAnalysis (immutable snapshot)
+ *
+ * GUARANTEES:
+ *   - Never calls addEntity / updateEntity / deleteEntities
+ *   - Never writes to projectStore
+ *   - Never writes to MongoDB
+ *   - Safe to call from unit tests without React or Konva
+ */
 
-import type { Project, VastuRule, VastuAnalysis, VastuViolation, VastuZone, VastuZoneType } from '@vastuplan/shared';
+import type { Project, VastuAnalysis, VastuSettings } from '@vastuplan/shared';
+import { DEFAULT_VASTU_SETTINGS } from '@vastuplan/shared';
+import { buildVastuZoneMap } from './vastuZones';
+import { TRADITIONAL_V1_RULES, getRulesForSet } from './vastuRules';
+import { evaluateRules } from './vastuEvaluator';
+import { calculateCategoryScores, calculateOverallScore, generateWarnings } from './vastuScoring';
+import { buildRecommendations } from './vastuRecommendations';
+import { getFloor, computeDesignHash } from './vastuUtils';
+import { DEFAULT_ZONE_CONFIG } from './vastuGeometry';
 
-// ---------------------------------------------------------------------------
-// Rule registry (to be populated in Phase 3)
-// ---------------------------------------------------------------------------
-
-const VASTU_RULES: VastuRule[] = [
-  // Phase 3 will add rules such as:
-  // { id: 'kitchen-south-east', name: 'Kitchen in South-East', ... }
-  // { id: 'pooja-north-east', name: 'Prayer room in North-East', ... }
-  // { id: 'bedroom-south-west', name: 'Master bedroom in South-West', ... }
-];
-
-// ---------------------------------------------------------------------------
-// Zone calculation (stub)
-// ---------------------------------------------------------------------------
-
-const ZONE_TYPES: VastuZoneType[] = [
-  'north', 'north-east', 'east', 'south-east',
-  'south', 'south-west', 'west', 'north-west', 'center',
-];
+// ── Main Analysis Function ────────────────────────────────────────────────────
 
 /**
- * Divide a plot into Vastu zones.
- * Will be fully implemented in Phase 3.
+ * Analyze a project for traditional Vastu guidance.
+ *
+ * @param project - The project to analyze (never mutated)
+ * @param floorIndex - Which floor to analyze (default: 0 = Ground Floor)
+ * @param settings - Vastu analysis settings (default: traditional-v1, balanced)
+ * @returns VastuAnalysis snapshot (immutable, separate from the CAD design)
+ *
+ * @example
+ * // In a Vitest unit test (no React, no Konva required):
+ * const analysis = analyzeVastu(project);
+ * expect(analysis.overallScore).toBeGreaterThan(0);
  */
-export function calculateVastuZones(_project: Project): VastuZone[] {
-  // TODO (Phase 3): Divide the plot into 9 zones based on plot dimensions and facing
-  return [];
-}
+export function analyzeVastu(
+  project: Project,
+  floorIndex = 0,
+  settings: VastuSettings = DEFAULT_VASTU_SETTINGS
+): VastuAnalysis {
+  const floor = getFloor(project, floorIndex);
+  const entities = floor?.entities ?? [];
 
-// ---------------------------------------------------------------------------
-// Analysis entry point
-// ---------------------------------------------------------------------------
+  // 1. Build zone map from plot geometry
+  const zoneMap = buildVastuZoneMap(project.plot, DEFAULT_ZONE_CONFIG);
 
-/**
- * Analyze a project for Vastu compliance.
- * Returns an empty/neutral analysis in Phase 1.
- * Will be fully implemented in Phase 3.
- */
-export function analyzeVastu(project: Project): VastuAnalysis {
-  const zones = calculateVastuZones(project);
-  const violations: VastuViolation[] = [];
+  // 2. Get applicable rules for the configured rule set
+  const rules = getRulesForSet(settings.ruleSetId);
+  const allRules = rules.length > 0 ? rules : TRADITIONAL_V1_RULES;
 
-  // Run each registered rule
-  for (const rule of VASTU_RULES) {
-    if (rule.evaluate) {
-      const violation = rule.evaluate(project);
-      if (violation) violations.push(violation);
-    }
-  }
+  // 3. Evaluate rules against entities (pure, no side effects)
+  const ruleResults = evaluateRules(entities, zoneMap, project.plot, allRules, settings);
 
-  const score = calculateScore(violations);
+  // 4. Calculate category and overall scores (transparent, traceable)
+  const categoryScores = calculateCategoryScores(ruleResults, allRules, settings);
+  const overallScore = calculateOverallScore(categoryScores);
+
+  // 5. Build human-readable recommendations (warnings and violations only)
+  const recommendations = buildRecommendations(ruleResults, allRules);
+
+  // 6. Generate analysis-level warnings
+  const warnings = generateWarnings(ruleResults, entities);
+
+  // 7. Compute design hash for stale detection
+  const designHash = computeDesignHash(project, floorIndex);
 
   return {
     projectId: project.id,
-    score,
-    zones,
-    violations,
-    recommendations: generateRecommendations(violations),
+    floorIndex,
+    ruleSetId: settings.ruleSetId,
+    designHash,
+    overallScore,
+    categoryScores,
+    zoneMap,
+    ruleResults,
+    warnings,
+    recommendations,
     analyzedAt: new Date().toISOString(),
+    settings,
   };
 }
 
-function calculateScore(violations: VastuViolation[]): number {
-  if (violations.length === 0) return 100;
-  const deductions = violations.reduce((acc, v) => {
-    const penalty = { good: 0, neutral: 0, warning: 10, critical: 25 }[v.severity] ?? 0;
-    return acc + penalty;
-  }, 0);
-  return Math.max(0, 100 - deductions);
-}
-
-function generateRecommendations(violations: VastuViolation[]): string[] {
-  return violations.map((v) => v.suggestion).filter(Boolean);
-}
-
-// ---------------------------------------------------------------------------
-// Rule registration (for Phase 3)
-// ---------------------------------------------------------------------------
-
-/**
- * Register a Vastu rule with the engine.
- * Phase 3 will call this to register all rules.
- */
-export function registerVastuRule(rule: VastuRule): void {
-  const existing = VASTU_RULES.findIndex((r) => r.id === rule.id);
-  if (existing !== -1) {
-    VASTU_RULES[existing] = rule;
-  } else {
-    VASTU_RULES.push(rule);
-  }
-}
-
-export { ZONE_TYPES };
+// Re-export utilities used by the store and UI
+export { TRADITIONAL_V1_RULES, DEFAULT_ZONE_CONFIG };
+export type { VastuZoneConfig } from './vastuGeometry';

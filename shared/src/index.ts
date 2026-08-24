@@ -91,7 +91,9 @@ export type DesignEntityType =
   | 'electrical-point'
   | 'plumbing-point'
   | 'parking'
-  | 'garden';
+  | 'garden'
+  | 'compound-wall'
+  | 'gate';
 
 /**
  * Base interface for all design entities.
@@ -136,6 +138,8 @@ export interface WallEntity extends DesignEntity {
 
 export interface RoomProperties {
   name: string;
+  roomType?: string;
+  displayName?: string;
   color?: string;
   [key: string]: unknown;
 }
@@ -160,6 +164,122 @@ export interface DimensionProperties {
 export interface DimensionEntity extends DesignEntity {
   type: 'dimension';
   properties: DimensionProperties;
+}
+
+export interface DoorProperties {
+  hostWallId: string;
+  offsetAlongWall: number;
+  doorType: 'single' | 'double' | 'sliding' | 'folding';
+  swingDirection: 'left' | 'right';
+  swingOrientation: 'inward' | 'outward';
+  width: number;
+  height: number;
+  /**
+   * Semantic role of this door on the floor.
+   * Only one door per floor should have doorRole === 'main-entrance'.
+   * The UI must enforce this constraint when marking a door as main entrance.
+   */
+  doorRole?: 'main-entrance' | 'interior' | 'service' | 'other';
+  [key: string]: unknown;
+}
+
+export interface DoorEntity extends DesignEntity {
+  type: 'door';
+  properties: DoorProperties;
+}
+
+export interface WindowProperties {
+  hostWallId: string;
+  offsetAlongWall: number;
+  windowType: 'single' | 'double' | 'sliding' | 'bay';
+  width: number;
+  height: number;
+  [key: string]: unknown;
+}
+
+export interface WindowEntity extends DesignEntity {
+  type: 'window';
+  properties: WindowProperties;
+}
+
+export interface StaircaseProperties {
+  staircaseType: 'straight' | 'l-shaped' | 'u-shaped' | 'spiral';
+  steps: number;
+  direction: 'up' | 'down';
+  width: number;
+  [key: string]: unknown;
+}
+
+export interface StaircaseEntity extends DesignEntity {
+  type: 'staircase';
+  properties: StaircaseProperties;
+}
+
+export interface ColumnProperties {
+  width: number;
+  depth: number;
+  diameter?: number;
+  shape: 'rectangle' | 'circle';
+  [key: string]: unknown;
+}
+
+export interface ColumnEntity extends DesignEntity {
+  type: 'column';
+  properties: ColumnProperties;
+}
+
+export interface ParkingProperties {
+  parkingType: 'car' | 'bike' | 'mixed';
+  vehicleCount: number;
+  [key: string]: unknown;
+}
+
+export interface ParkingEntity extends DesignEntity {
+  type: 'parking';
+  properties: ParkingProperties;
+}
+
+export interface GardenProperties {
+  gardenType: 'garden' | 'lawn' | 'courtyard' | 'open-space';
+  [key: string]: unknown;
+}
+
+export interface GardenEntity extends DesignEntity {
+  type: 'garden';
+  properties: GardenProperties;
+}
+
+export interface CompoundWallSegment {
+  id: string;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}
+
+export interface CompoundWallProperties {
+  segments: CompoundWallSegment[];
+  thickness: number;
+  [key: string]: unknown;
+}
+
+export interface CompoundWallEntity extends DesignEntity {
+  type: 'compound-wall';
+  properties: CompoundWallProperties;
+}
+
+export interface GateProperties {
+  hostCompoundWallId: string;
+  hostSegmentId: string;
+  offsetAlongWall: number;
+  gateType: 'single' | 'double' | 'sliding';
+  width: number;
+  [key: string]: unknown;
+}
+
+export interface GateEntity extends DesignEntity {
+  type: 'gate';
+  properties: GateProperties;
 }
 
 // ---------------------------------------------------------------------------
@@ -228,9 +348,12 @@ export type HistoryActionType =
   | 'MOVE_ENTITY'
   | 'RESIZE_ENTITY'
   | 'ROTATE_ENTITY'
+  | 'ATTACH_ENTITY'
+  | 'DETACH_ENTITY'
   | 'CREATE_FLOOR'
   | 'DELETE_FLOOR'
-  | 'UPDATE_SETTINGS';
+  | 'UPDATE_SETTINGS'
+  | 'AI_PROPOSAL';
 
 export interface HistoryAction {
   id: string;
@@ -245,83 +368,323 @@ export interface HistoryAction {
 }
 
 // ---------------------------------------------------------------------------
-// Vastu Architecture (stubs — to be implemented in Phase 3)
+// Vastu Intelligence Engine — Phase 4 Types
 // ---------------------------------------------------------------------------
 
-export type VastuZoneType =
-  | 'north'
-  | 'south'
-  | 'east'
-  | 'west'
-  | 'north-east'
-  | 'north-west'
-  | 'south-east'
-  | 'south-west'
-  | 'center';
+/**
+ * Eight compass directions + center used throughout the Vastu engine.
+ * Abbreviated for concise code. Use VASTU_DIRECTION_LABELS for display.
+ *
+ * CANONICAL COORDINATE MAPPING (see vastuGeometry.ts):
+ *   Canvas +X = East, Canvas +Y = South (Y increases downward)
+ *   N = top of canvas (y=0), S = bottom (y=plotLength)
+ *   W = left  (x=0),        E = right  (x=plotWidth)
+ */
+export type VastuDirection =
+  | 'N' | 'NE' | 'E' | 'SE'
+  | 'S' | 'SW' | 'W' | 'NW'
+  | 'CENTER';
 
-export type VastuSeverity = 'good' | 'neutral' | 'warning' | 'critical';
+export const VASTU_DIRECTION_LABELS: Record<VastuDirection, string> = {
+  N: 'North', NE: 'North-East', E: 'East', SE: 'South-East',
+  S: 'South', SW: 'South-West', W: 'West', NW: 'North-West',
+  CENTER: 'Brahmasthan (Center)',
+};
+
+/** Normalized [0,1] bounding box independent of plot dimensions */
+export interface NormalizedBounds {
+  minX: number; // 0 = West
+  minY: number; // 0 = North
+  maxX: number; // 1 = East
+  maxY: number; // 1 = South
+}
+
+/**
+ * Which boundary wall a door/gate sits on, plus its position along that wall.
+ * Prepared for future pada (1–9 sub-zone) analysis.
+ */
+export type BoundarySide = 'N' | 'S' | 'E' | 'W';
+
+export interface BoundaryPosition {
+  side: BoundarySide;
+  /** 0 = start of wall, 1 = end of wall */
+  relativePosition: number;
+  /**
+   * Traditional Vastu pada (1–9) along the wall.
+   * Computed as: Math.floor(relativePosition * 9) + 1
+   * Reserved for Phase 5 entrance analysis.
+   */
+  pada: number;
+}
+
+// ── Vastu Zone ──────────────────────────────────────────────────────────────
 
 export interface VastuZone {
-  type: VastuZoneType;
-  bounds: WorldBounds;
-  /** List of recommended uses for this zone */
-  recommendedUses: string[];
-  /** List of uses to avoid in this zone */
-  avoidedUses: string[];
+  id: VastuDirection;
+  direction: VastuDirection;
+  label: string;
+  /** World-unit bounds (feet or meters, depends on project unit) */
+  worldBounds: WorldBounds;
+  /** Normalized [0,1] bounds — plot-dimension independent */
+  normalizedBounds: NormalizedBounds;
+  /** Center of zone in world coordinates */
+  center: WorldPoint;
 }
 
-export interface VastuRule {
+/** Map from direction to zone — produced by buildVastuZones() */
+export type VastuZoneMap = Partial<Record<VastuDirection, VastuZone>>;
+
+// ── Vastu Rule System ───────────────────────────────────────────────────────
+
+export type VastuRuleSeverity = 'info' | 'positive' | 'warning' | 'critical';
+
+export type VastuRuleStatus =
+  | 'pass'
+  | 'preferred'
+  | 'acceptable'
+  | 'warning'
+  | 'violation'
+  | 'not-applicable';
+
+export type VastuRuleCategory =
+  | 'entrance'
+  | 'kitchen'
+  | 'master-bedroom'
+  | 'bedrooms'
+  | 'pooja-room'
+  | 'bathroom-toilet'
+  | 'staircase'
+  | 'living-area'
+  | 'parking'
+  | 'garden'
+  | 'brahmasthan'
+  | 'general';
+
+export type VastuZoneSystem = '3x3' | '8-direction' | '16-zone' | '32-zone' | '64-zone';
+
+export type VastuStrictness = 'relaxed' | 'balanced' | 'strict';
+
+/**
+ * Data-driven Vastu rule descriptor.
+ * The evaluator (vastuEvaluator.ts) iterates these; no per-rule if/else.
+ * All rules must declare their source as 'traditional-guidance' —
+ * NEVER 'scientific', 'proven', or 'building-code'.
+ */
+export interface VastuRuleDefinition {
   id: string;
   name: string;
-  description: string;
-  severity: VastuSeverity;
-  /** Function that evaluates the rule — implemented in Phase 3 */
-  evaluate?: (project: Project) => VastuViolation | null;
+  /** Rule-set this rule belongs to. Allows future alternative rule sets. */
+  ruleSetId: string;
+  /**
+   * Source classification. ALWAYS 'traditional-guidance' for Vastu rules.
+   * This distinction prevents Vastu rules from being confused with
+   * engineering, structural, or regulatory requirements.
+   */
+  sourceType: 'traditional-guidance';
+  category: VastuRuleCategory;
+  /** Entity types this rule applies to (empty = all) */
+  targetEntityTypes?: DesignEntityType[];
+  /** roomType values this rule applies to (for room entities) */
+  targetRoomTypes?: string[];
+  preferredZones: VastuDirection[];
+  acceptableZones: VastuDirection[];
+  avoidZones: VastuDirection[];
+  /** Default severity when rule is violated */
+  severity: VastuRuleSeverity;
+  /** Score contribution (0–10). Higher = more important. */
+  weight: number;
+  /** Minimum strictness level at which this rule is applied */
+  strictnessThreshold: VastuStrictness;
+  /** Non-scientific explanation suitable for display */
+  explanation: string;
+  /** Actionable recommendation when rule is not satisfied */
+  recommendation: string;
 }
 
-export interface VastuViolation {
+/** Result of evaluating one rule against one entity */
+export interface VastuRuleResult {
   ruleId: string;
-  severity: VastuSeverity;
+  ruleName: string;
+  ruleCategory: VastuRuleCategory;
+  entityId: string;
+  entityType: DesignEntityType;
+  /** Human-readable entity label (e.g. "Kitchen", "Master Bedroom") */
+  entityLabel: string;
+  status: VastuRuleStatus;
+  severity: VastuRuleSeverity;
+  /** Positive or negative score contribution */
+  scoreImpact: number;
+  /** Current zone where entity is located */
+  currentZone: VastuDirection | null;
   message: string;
-  affectedEntityIds: string[];
-  suggestion: string;
+  explanation: string;
+  recommendation: string;
+}
+
+// ── Scoring ─────────────────────────────────────────────────────────────────
+
+export interface VastuCategoryScore {
+  category: VastuRuleCategory;
+  label: string;
+  score: number;     // 0–100
+  maxScore: number;  // maximum achievable in category
+  ruleCount: number;
+  status: VastuRuleStatus; // worst status in category
+}
+
+// ── Settings ────────────────────────────────────────────────────────────────
+
+export interface VastuSettings {
+  /** Which rule set to use. Default: 'traditional-v1' */
+  ruleSetId: string;
+  /** Zone subdivision system. Default: '3x3' */
+  zoneSystem: VastuZoneSystem;
+  strictness: VastuStrictness;
+  showHeatmap: boolean;
+  showEntityHighlights: boolean;
+}
+
+export const DEFAULT_VASTU_SETTINGS: VastuSettings = {
+  ruleSetId: 'traditional-v1',
+  zoneSystem: '3x3',
+  strictness: 'balanced',
+  showHeatmap: true,
+  showEntityHighlights: true,
+};
+
+// ── Analysis Snapshot ───────────────────────────────────────────────────────
+
+export interface VastuRecommendation {
+  entityId: string;
+  entityType: DesignEntityType;
+  entityLabel: string;
+  issue: string;
+  currentZone: VastuDirection | null;
+  preferredZones: VastuDirection[];
+  reason: string;
+  severity: VastuRuleSeverity;
+  ruleId: string;
 }
 
 export interface VastuAnalysis {
   projectId: string;
-  score: number; // 0–100
-  zones: VastuZone[];
-  violations: VastuViolation[];
-  recommendations: string[];
-  analyzedAt: string;
+  floorIndex: number;
+  ruleSetId: string;
+  /** Lightweight hash of design state at analysis time. Used for stale detection. */
+  designHash: string;
+  overallScore: number;  // 0–100
+  categoryScores: VastuCategoryScore[];
+  /** Map of direction → VastuZone for this analysis */
+  zoneMap: VastuZoneMap;
+  ruleResults: VastuRuleResult[];
+  warnings: string[];
+  recommendations: VastuRecommendation[];
+  analyzedAt: string; // ISO 8601
+  settings: VastuSettings;
 }
 
+// Keep VastuZoneType alias for backward compatibility with existing code
+export type VastuZoneType = VastuDirection;
+
 // ---------------------------------------------------------------------------
-// AI Architecture (stubs — to be implemented in Phase 4)
+// AI Design Assistant — Phase 5 Types
 // ---------------------------------------------------------------------------
 
 export type AICommandType =
   | 'create_room'
-  | 'delete_room'
-  | 'resize_room'
+  | 'delete_entity'
   | 'move_entity'
-  | 'suggest_layout'
-  | 'add_furniture'
-  | 'optimize_vastu';
+  | 'resize_entity'
+  | 'rotate_entity'
+  | 'update_entity_properties'
+  | 'create_wall'
+  | 'create_door'
+  | 'create_window'
+  | 'create_staircase'
+  | 'create_column'
+  | 'create_parking'
+  | 'create_garden'
+  | 'create_compound_wall'
+  | 'create_gate'
+  | 'duplicate_entity';
 
 export interface AICommand {
+  id: string;
   action: AICommandType;
   entityId?: string;
-  /** Command-specific parameters */
+  entityType?: DesignEntityType;
   params: Record<string, unknown>;
-  /** Natural language description of what the command does */
+  /** Human-readable description of what this command does */
   description: string;
+  /** Why the AI chose this action */
+  reason?: string;
+  /** AI's confidence in this specific command (0–1) */
+  confidence?: number;
 }
 
-export interface AIResponse {
-  commands: AICommand[];
+export type AIProposalStatus =
+  | 'pending-validation'
+  | 'valid'
+  | 'invalid'
+  | 'approved'
+  | 'rejected'
+  | 'applied';
+
+export interface AIValidationError {
+  commandId?: string;
+  reason: string;
+  severity: 'error' | 'warning';
+}
+
+export interface AIProposal {
+  id: string;
+  title: string;
   explanation: string;
-  confidence: number; // 0–1
+  commands: AICommand[];
+  validationErrors: AIValidationError[];
+  warnings: string[];
+  status: AIProposalStatus;
+  createdAt: string; // ISO 8601
+  /** Vastu score of the current design at proposal time */
+  currentVastuScore?: number;
+  /** Estimated Vastu score after applying this proposal */
+  proposedVastuScore?: number;
+}
+
+// ── AI Chat ─────────────────────────────────────────────────────────────
+
+export type AIChatRole = 'user' | 'assistant' | 'system';
+
+export interface AIChatMessage {
+  id: string;
+  role: AIChatRole;
+  content: string;
+  /** If assistant message includes a design proposal */
+  proposal?: AIProposal;
+  timestamp: string; // ISO 8601
+}
+
+export interface AIDesignContext {
+  projectId: string;
+  projectName: string;
+  plot: Plot;
+  floorIndex: number;
+  entities: DesignEntity[];
+  selectedEntityIds: string[];
+  vastuAnalysis?: VastuAnalysis;
+}
+
+export interface AIChatRequest {
+  message: string;
+  context: AIDesignContext;
+  conversationHistory: AIChatMessage[];
+}
+
+export interface AIChatResponse {
+  message: string;
+  proposal?: AIProposal;
+  confidence?: number;
+  requiresClarification?: boolean;
 }
 
 // ---------------------------------------------------------------------------

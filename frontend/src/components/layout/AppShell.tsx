@@ -14,6 +14,8 @@ import { WorkspacePage } from '../../pages/WorkspacePage';
 import { LandingPage } from '../../pages/LandingPage';
 import { calculateArea } from '../../utils/units';
 import { useCanvasStore } from '../../stores/canvasStore';
+import { VastuPanel } from '../../features/vastu/components/VastuPanel';
+import { AIAssistantPanel } from '../../features/ai/components/AIAssistantPanel';
 
 export const AppShell: React.FC = () => {
   const {
@@ -22,6 +24,7 @@ export const AppShell: React.FC = () => {
     isProjectListOpen,
     setProjectListOpen,
     setBackendConnected,
+    rightPanelContext,
   } = useUIStore();
 
   const { currentProject } = useProjectStore();
@@ -86,8 +89,14 @@ export const AppShell: React.FC = () => {
           )}
         </div>
 
-        {/* Right inspector */}
-        {currentProject && <InspectorPanel />}
+        {/* Right panel: Contextual (Inspector / Vastu / AI Assistant) */}
+        {currentProject && rightPanelContext === 'ai' ? (
+          <AIAssistantPanel project={currentProject} floorIndex={0} />
+        ) : currentProject && rightPanelContext === 'vastu' ? (
+          <VastuPanel project={currentProject} floorIndex={0} />
+        ) : currentProject ? (
+          <InspectorPanel />
+        ) : null}
       </div>
 
       {/* ── Status bar ── */}

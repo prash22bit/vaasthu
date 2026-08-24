@@ -11,6 +11,7 @@ import type {
   DimensionEntity,
 } from '@vastuplan/shared';
 import { projectApi } from '../api/projectApi';
+import { updateHostedEntitiesOnWallUpdate, cleanOrphanedEntities } from '../utils/architectural';
 
 interface ProjectStore {
   // State
@@ -189,19 +190,21 @@ export const useProjectStore = create<ProjectStore>()(
           properties: updatedProperties,
         };
 
-        // Associative dimension updates
+        // Associative dimension updates & host wall synchronization
         const updatedEntity = floor.entities[idx];
         if (updatedEntity.type === 'wall') {
-          const wall = updatedEntity as WallEntity;
+          const wall = updatedEntity as unknown as WallEntity;
           floor.entities.forEach((e) => {
-            if (e.type === 'dimension' && (e as DimensionEntity).properties.associatedEntityId === id) {
-              const dim = e as DimensionEntity;
+            if (e.type === 'dimension' && (e as unknown as DimensionEntity).properties.associatedEntityId === id) {
+              const dim = e as unknown as DimensionEntity;
               dim.properties.startX = wall.properties.startX;
               dim.properties.startY = wall.properties.startY;
               dim.properties.endX = wall.properties.endX;
               dim.properties.endY = wall.properties.endY;
             }
           });
+          // Recalculate hosted doors and windows
+          floor.entities = updateHostedEntitiesOnWallUpdate(wall, floor.entities);
         }
 
         s.saveStatus = 'unsaved';
@@ -218,9 +221,10 @@ export const useProjectStore = create<ProjectStore>()(
         floor.entities = floor.entities.filter((e) => !idSet.has(e.id));
         // Remove dimensions associated with deleted entities
         floor.entities = floor.entities.filter(
-          (e) => e.type !== 'dimension' || !idSet.has((e as DimensionEntity).properties.associatedEntityId || '')
+          (e) => !(e.type === 'dimension' && (e as unknown as DimensionEntity).properties.associatedEntityId && idSet.has((e as unknown as DimensionEntity).properties.associatedEntityId!))
         );
-
+        // Clean orphaned hosted doors, windows, and gates
+        floor.entities = cleanOrphanedEntities(floor.entities);
         s.saveStatus = 'unsaved';
       });
     },

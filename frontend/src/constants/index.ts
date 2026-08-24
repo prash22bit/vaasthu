@@ -91,20 +91,32 @@ export type ToolId =
   | 'select'
   | 'pan'
   | 'wall'
-  | 'room'
+  | 'column'
+  | 'compound-wall'
   | 'door'
   | 'window'
+  | 'gate'
+  | 'room'
+  | 'parking'
+  | 'garden'
+  | 'staircase'
   | 'dimension'
   | 'text';
 
-export const TOOLS: { id: ToolId; label: string; icon: string; shortcut?: string; disabled?: boolean }[] = [
-  { id: 'select', label: 'Select', icon: 'MousePointer', shortcut: 'V' },
-  { id: 'pan', label: 'Pan', icon: 'Hand', shortcut: 'H' },
-  { id: 'wall', label: 'Wall', icon: 'Minus', shortcut: 'W' },
-  { id: 'room', label: 'Room', icon: 'Square', shortcut: 'R' },
-  { id: 'door', label: 'Door', icon: 'DoorOpen', shortcut: 'O', disabled: true },
-  { id: 'window', label: 'Window', icon: 'AppWindow', shortcut: 'N', disabled: true },
-  { id: 'dimension', label: 'Dim', icon: 'Ruler', shortcut: 'D' },
+export const TOOLS: { id: ToolId; label: string; icon: string; shortcut?: string; category?: string; disabled?: boolean }[] = [
+  { id: 'select', label: 'Select', icon: 'MousePointer', shortcut: 'V', category: 'General' },
+  { id: 'pan', label: 'Pan', icon: 'Hand', shortcut: 'H', category: 'General' },
+  { id: 'wall', label: 'Wall', icon: 'Minus', shortcut: 'W', category: 'Structure' },
+  { id: 'column', label: 'Column', icon: 'Columns', shortcut: 'C', category: 'Structure' },
+  { id: 'compound-wall', label: 'Boundary', icon: 'Shield', shortcut: 'B', category: 'Structure' },
+  { id: 'door', label: 'Door', icon: 'DoorOpen', shortcut: 'O', category: 'Openings' },
+  { id: 'window', label: 'Window', icon: 'AppWindow', shortcut: 'N', category: 'Openings' },
+  { id: 'gate', label: 'Gate', icon: 'DoorClosed', shortcut: 'G', category: 'Openings' },
+  { id: 'room', label: 'Room', icon: 'Square', shortcut: 'R', category: 'Spaces' },
+  { id: 'parking', label: 'Parking', icon: 'Car', shortcut: 'P', category: 'Spaces' },
+  { id: 'garden', label: 'Garden', icon: 'Trees', shortcut: 'K', category: 'Spaces' },
+  { id: 'staircase', label: 'Stairs', icon: 'Footprints', shortcut: 'T', category: 'Vertical' },
+  { id: 'dimension', label: 'Dim', icon: 'Ruler', shortcut: 'D', category: 'Annotate' },
 ];
 
 // ---------------------------------------------------------------------------
